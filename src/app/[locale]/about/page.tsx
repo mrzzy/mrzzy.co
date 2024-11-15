@@ -3,7 +3,6 @@ import { baseURL, renderContent } from '@/app/resources';
 import TableOfContents from '@/components/about/TableOfContents';
 import styles from '@/components/about/about.module.scss'
 import { getTranslations, unstable_setRequestLocale } from 'next-intl/server';
-import { useTranslations } from 'next-intl';
 
 export async function generateMetadata(
     {params: {locale}}: { params: { locale: string }}
@@ -38,11 +37,10 @@ export async function generateMetadata(
 	};
 }
 
-export default function About(
+export default async function About(
     { params: {locale}}: { params: { locale: string }}
 ) {
-    unstable_setRequestLocale(locale);
-    const t = useTranslations();
+    const t = await getTranslations();
     const {person, about, social } = renderContent(t);
     const structure = [
         { 
