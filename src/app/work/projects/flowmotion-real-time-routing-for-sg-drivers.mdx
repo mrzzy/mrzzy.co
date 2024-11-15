@@ -1,0 +1,59 @@
+---
+title: "Flowmotion: Real-time congestion routing app for Singaporean drivers."
+publishedAt: "2024-11-15"
+summary: "Real-time traffic congestion analysis and route optimization app for Singaporean drivers. "
+images:
+  - "/images/projects/flowmotion/banner.png"
+team:
+  - name: "Zhu Zhanyan"
+    avatar: "/images/avatar.jpg"
+  - name: "Felis Tan"
+    avatar: "/images/projects/flowmotion/team/felis_tan.jpg"
+  - name: "Zhi Xin"
+  - name: "Devlin Waluja"
+  - name: "Vidit"
+  - name: "Feng Ren Yeo"
+---
+
+## Overview
+
+FlowMotion is a mobile application developed to help Singaporean drivers navigate traffic more efficiently by providing real-time congestion data. Leveraging live traffic camera feeds and machine learning models, the app analyzes road congestion and offers optimized route recommendations. The goal of FlowMotion is to minimize commuter stress and time spent in traffic, providing users with a seamless and personalized experience to plan their daily commutes.
+
+## Key Features
+
+![Flowmotion Traffic Congestion Visualization Features](/images/projects/flowmotion/images/features.png)
+- **Real-Time Traffic Visualization**: Using a mini map and a full map, users can view current traffic conditions based on data from 90 traffic cameras. Congestion levels are visually represented with real-time updates and historical data.
+- **Route Recommendations**: The app offers optimized route suggestions by integrating congestion data from live traffic camera feeds into the Open Source Routing Machine (OSRM). Users can compare standard (blue) and congestion-weighted (green) routes.
+- **Congestion Rating System**: Traffic images are processed through a custom YOLOv8-based machine learning model, which assigns congestion ratings by comparing the area of vehicles bounding boxes and the area of the road segmentation mask.
+- **Customizable User Experience**: Users can manage saved destinations, track traffic trends, and receive personalized alerts for their preferred routes and locations.
+
+
+![Flowmotion Machine Learning](/images/projects/flowmotion/images/machine_learning.png)
+
+## Technologies Used
+
+![Flowmotion System Design](/images/projects/flowmotion/images/system_design.png)
+- **Flutter**: For building a cross-platform mobile app, ensuring compatibility across both iOS and Android devices.
+- **Express.js and Firebase**: For backend development, utilizing Firestore for database management and Firebase Authentication for secure user management.
+- **YOLOv8 with PyTorch**: For detecting vehicles and assessing congestion in traffic images.
+- **Google Cloud & Firebase Cloud Run**: For hosting backend services, ensuring scalable and cost-efficient cloud infrastructure.
+- **OSRM API**: For real-time route calculations, integrating congestion-weighted data to recommend the fastest and least congested routes.
+
+## SWE Best Practices
+
+- **Test-Driven Development (TDD)**: Our team adopted TDD, ensuring that unit tests were written alongside the development of new features. This approach improved code quality and increased test coverage.
+- **Continuous Integration and Deployment (CI/CD)**: Using GitHub Actions, we automated testing, linting, and deployment processes, ensuring that every update is quickly and efficiently integrated into the codebase.
+- **Agile Methodology**: We worked in sprints, holding regular stand-up meetings and retrospectives, which helped us remain adaptive to changing requirements while maintaining progress on our features.
+- **Design Patterns**: The backend system leveraged patterns such as Command Query Responsibility Segregation (CQRS) and Event Sourcing to handle data efficiently and support advanced features like time-travel analysis.
+- **Documentation**: Comprehensive API and system documentation ensured smooth communication between teams and allowed for easier scaling of the project.
+
+## Challenges and Learnings
+
+- **Database Choice**: Firebase wasn't ideal for storing congestion ratings due to challenges with data aggregation. An SQL database would have been a better fit for handling large datasets and complex queries.
+- **Code Synchronization**: Employed code generation tools like OpenAPI to keep the backend and mobile apps in sync. This streamlined serialization tasks and reduced manual effort.
+- **Performance Optimization**: Implemented a vectorized version of the Haversine Distance formula for congestion mapping, resulting in a significant performance boost and better handling of large-scale data.
+- **Collaboration**: Working as a software engineering team with best practices (e.g., Test-Driven Development, Agile, CI/CD) greatly enhanced team efficiency and made the development process more enjoyable and productive.
+
+## Outcome
+
+The final app helps users avoid congestion and plan their commutes more efficiently. The adoption of best practices such as TDD, Agile workflows, and CI/CD pipelines improved the overall development speed and ensured the app’s scalability and robustness. Ultimately, the project demonstrated the value of collaboration, performance optimization, and well-chosen technologies, and implementing best practices to improving the app’s quality.
