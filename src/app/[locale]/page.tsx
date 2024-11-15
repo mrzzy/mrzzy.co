@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Heading, Flex, Text, Button,  Avatar, RevealFx, Arrow } from '@/once-ui/components';
+import { Heading, Flex, Text, Button,  Avatar, Arrow } from '@/once-ui/components';
 import { Projects } from '@/components/work/Projects';
 
 import { baseURL, routes, renderContent } from '@/app/resources'; 
@@ -81,54 +81,48 @@ export default function Home(
 					<Flex
 						direction="column"
 						fillWidth maxWidth="s" gap="m">
-						<RevealFx
-							translateY="4">
-							<Heading
+
+						<Heading
+							wrap="balance"
+							variant="display-strong-l">
+							{home.headline}
+						</Heading>
+
+
+						<Flex fillWidth>
+							<Text
 								wrap="balance"
-								variant="display-strong-l">
-								{home.headline}
-							</Heading>
-						</RevealFx>
-						<RevealFx
-							translateY="8" delay={0.2}>
-							<Flex fillWidth>
-								<Text
-									wrap="balance"
-									onBackground="neutral-weak"
-									variant="heading-default-xl">
-									{home.subline}
-								</Text>
-							</Flex>
-						</RevealFx>
-						<RevealFx translateY="12" delay={0.4}>
-							<Flex fillWidth>
-								<Button
-									id="about"
-									data-border="rounded"
-									href={`/${locale}/about`}
-									variant="tertiary"
-									size="m">
-									<Flex
-										gap="8"
-										alignItems="center">
-										{about.avatar.display && (
-											<Avatar
-												style={{marginLeft: '-0.75rem', marginRight: '0.25rem'}}
-												src={person.avatar}
-												size="m"/>
-											)}
-											{t("about.title")}
-											<Arrow trigger="#about"/>
-									</Flex>
-								</Button>
-							</Flex>
-						</RevealFx>
+								onBackground="neutral-weak"
+								variant="heading-default-xl">
+								{home.subline}
+							</Text>
+						</Flex>
+
+						<Flex fillWidth>
+							<Button
+								id="about"
+								data-border="rounded"
+								href={`/${locale}/about`}
+								variant="tertiary"
+								size="m">
+								<Flex
+									gap="8"
+									alignItems="center">
+									{about.avatar.display && (
+									<Avatar
+									style={{marginLeft: '-0.75rem', marginRight: '0.25rem'}}
+										src={person.avatar}
+										size="m"/>
+										)}
+										{t("about.title")}
+									<Arrow trigger="#about"/>
+								</Flex>
+							</Button>
+						</Flex>
 					</Flex>
 				
 			</Flex>
-			<RevealFx translateY="16" delay={0.6}>
-				<Projects range={[1,1]} locale={locale}/>
-			</RevealFx>
+			<Projects range={[1,1]} locale={locale}/>
 			{routes['/blog'] && (
 				<Flex
 					fillWidth gap="24"
