@@ -14,20 +14,20 @@ import {
 import { home } from "./index";
 
 // IMPORTANT: Replace with your own domain address - it's used for SEO in meta tags and schema
-const baseURL: string = "https://demo.magic-portfolio.com";
+const baseURL: string = "https://mrzzy.co";
 
 const routes: RoutesConfig = {
   "/": true,
   "/about": true,
   "/work": true,
-  "/blog": true,
-  "/gallery": true,
+  "/blog": false,
+  "/gallery": false,
 };
 
 const display: DisplayConfig = {
-  location: true,
-  time: true,
-  themeSwitcher: true,
+  location: false,
+  time: false,
+  themeSwitcher: false,
 };
 
 // Enable password protection on selected routes
@@ -73,10 +73,10 @@ const fonts: FontsConfig = {
 
 // default customization applied to the HTML in the main layout.tsx
 const style: StyleConfig = {
-  theme: "system", // dark | light | system
+  theme: "dark", // dark | light | system
   neutral: "gray", // sand | gray | slate | custom
-  brand: "cyan", // blue | indigo | violet | magenta | pink | red | orange | yellow | moss | green | emerald | aqua | cyan | custom
-  accent: "red", // blue | indigo | violet | magenta | pink | red | orange | yellow | moss | green | emerald | aqua | cyan | custom
+  brand: "emerald", // blue | indigo | violet | magenta | pink | red | orange | yellow | moss | green | emerald | aqua | cyan | custom
+  accent: "indigo", // blue | indigo | violet | magenta | pink | red | orange | yellow | moss | green | emerald | aqua | cyan | custom
   solid: "contrast", // color | contrast
   solidStyle: "flat", // flat | plastic
   border: "playful", // rounded | playful | conservative
@@ -118,7 +118,7 @@ const effects: EffectsConfig = {
     colorEnd: "page-background",
   },
   dots: {
-    display: true,
+    display: false,
     opacity: 40,
     size: "2",
     color: "brand-background-strong",
