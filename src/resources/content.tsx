@@ -34,6 +34,11 @@ const social: Social = [
   // Import new icons in /once-ui/icons.ts
   // Set essentials: true for links you want to show on the about page
   {
+    name: "Resume",
+    icon: "resume",
+    link: "https://mrzzy.github.io/resume/assets/pdfs/main-1.pdf",
+  },
+  {
     name: "GitHub",
     icon: "github",
     link: "https://github.com/mrzzy",
