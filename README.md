@@ -8,7 +8,7 @@ Personal portfolio website to showcase projects, resume and work experience.
 
 ## Acknowledgements
 
-Built with the [Magic Portfolio template](https://github.com/once-ui-system/magic-portfolio) from Once UI for Next.js.
+Built with the [Magic Portfolio template](https://github.com/once-ui-system/magic-portfolio) from [Once UI](https://once-ui.com/) for Next.js.
 
 ## License
 
