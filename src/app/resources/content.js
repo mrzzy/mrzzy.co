@@ -47,7 +47,12 @@ const home = {
   label: "Home",
   title: `${person.name}'s Portfolio`,
   description: `Portfolio website showcasing my work as a ${person.role}`,
-  headline: <>🏗️ Building Software Systems that <Text onBackground="brand-medium">Scale.</Text></>,
+  headline: (
+    <>
+      🏗️ Building Software Systems that{" "}
+      <Text onBackground="brand-medium">Scale.</Text>
+    </>
+  ),
   subline: (
     <>
       👋 Hey, Zhanyan here.
