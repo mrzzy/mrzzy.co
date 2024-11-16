@@ -5,7 +5,7 @@ const RESUME_URL = "https://raw.githubusercontent.com/mrzzy/resume/refs/heads/ma
 
 /** Augment about.content with content from resume. */
 type About = typeof about;
-export const mergeResume = async (about: About) => {
+export const mergeResume = async (about: About): Promise<About> => {
   // fetch resume content
   const response = await fetch(RESUME_URL);
   const resume = await response.json();
