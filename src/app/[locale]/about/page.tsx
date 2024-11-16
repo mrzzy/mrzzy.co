@@ -12,7 +12,7 @@ import {
 import { baseURL, mergeResume, renderContent } from "@/app/resources";
 import TableOfContents from "@/components/about/TableOfContents";
 import styles from "@/components/about/about.module.scss";
-import { getTranslations, unstable_setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 export async function generateMetadata({
   params: { locale },
@@ -54,31 +54,32 @@ export default async function About({
 }: {
   params: { locale: string };
 }) {
+  setRequestLocale(locale);
   const t = await getTranslations();
   // fetch content
-  let { person, about, social } = renderContent(t);
-  about = await mergeResume(about);
+  const { person, about, social } = renderContent(t);
+  const aboutResume = await mergeResume(about);
 
   const structure = [
     {
-      title: about.intro.title,
-      display: about.intro.display,
+      title: aboutResume.intro.title,
+      display: aboutResume.intro.display,
       items: [],
     },
     {
-      title: about.work.title,
-      display: about.work.display,
-      items: about.work.experiences.map((experience) => experience.company),
+      title: aboutResume.work.title,
+      display: aboutResume.work.display,
+      items: aboutResume.work.experiences.map((experience) => experience.company),
     },
     {
-      title: about.studies.title,
-      display: about.studies.display,
-      items: about.studies.institutions.map((institution) => institution.name),
+      title: aboutResume.studies.title,
+      display: aboutResume.studies.display,
+      items: aboutResume.studies.institutions.map((institution) => institution.name),
     },
     {
-      title: about.technical.title,
-      display: about.technical.display,
-      items: about.technical.skills.map((skill) => skill.title),
+      title: aboutResume.technical.title,
+      display: aboutResume.technical.display,
+      items: aboutResume.technical.skills.map((skill) => skill.title),
     },
   ];
   return (
@@ -92,7 +93,7 @@ export default async function About({
             "@type": "Person",
             name: person.name,
             jobTitle: person.role,
-            description: about.intro.description,
+            description: aboutResume.intro.description,
             url: `https://${baseURL}/about`,
             image: `${baseURL}/images/${person.avatar}`,
             sameAs: social
@@ -100,12 +101,12 @@ export default async function About({
               .map((item) => item.link),
             worksFor: {
               "@type": "Organization",
-              name: about.work.experiences[0].company || "",
+              name: aboutResume.work.experiences[0].company || "",
             },
           }),
         }}
       />
-      {about.tableOfContent.display && (
+      {aboutResume.tableOfContent.display && (
         <Flex
           style={{ left: "0", top: "50%", transform: "translateY(-50%)" }}
           position="fixed"
@@ -114,11 +115,11 @@ export default async function About({
           direction="column"
           hide="s"
         >
-          <TableOfContents structure={structure} about={about} />
+          <TableOfContents structure={structure} about={aboutResume} />
         </Flex>
       )}
       <Flex fillWidth mobileDirection="column" justifyContent="center">
-        {about.avatar.display && (
+        {aboutResume.avatar.display && (
           <Flex
             minWidth="160"
             paddingX="l"
@@ -152,14 +153,14 @@ export default async function About({
           direction="column"
         >
           <Flex
-            id={about.intro.title}
+            id={aboutResume.intro.title}
             fillWidth
             minHeight="160"
             direction="column"
             justifyContent="center"
             marginBottom="32"
           >
-            {about.calendar.display && (
+            {aboutResume.calendar.display && (
               <Flex
                 className={styles.blockAlign}
                 style={{
@@ -180,7 +181,7 @@ export default async function About({
                 </Flex>
                 <Flex paddingX="8">Schedule a call</Flex>
                 <IconButton
-                  href={about.calendar.link}
+                  href={aboutResume.calendar.link}
                   data-border="rounded"
                   variant="tertiary"
                   icon="chevronRight"
@@ -222,7 +223,7 @@ export default async function About({
             )}
           </Flex>
 
-          {about.intro.display && (
+          {aboutResume.intro.display && (
             <Flex
               direction="column"
               textVariant="body-default-l"
@@ -230,22 +231,22 @@ export default async function About({
               gap="m"
               marginBottom="xl"
             >
-              {about.intro.description}
+              {aboutResume.intro.description}
             </Flex>
           )}
 
-          {about.work.display && (
+          {aboutResume.work.display && (
             <>
               <Heading
                 as="h2"
-                id={about.work.title}
+                id={aboutResume.work.title}
                 variant="display-strong-s"
                 marginBottom="m"
               >
-                {about.work.title}
+                {aboutResume.work.title}
               </Heading>
               <Flex direction="column" fillWidth gap="l" marginBottom="40">
-                {about.work.experiences.map((experience, index) => (
+                {aboutResume.work.experiences.map((experience, index) => (
                   <Flex
                     key={`${experience.company}-${experience.role}-${index}`}
                     fillWidth
@@ -276,7 +277,7 @@ export default async function About({
                     </Text>
                     <Flex as="ul" direction="column" gap="16">
                       {experience.achievements.map(
-                        (achievement: string, index: any) => (
+                        (achievement: JSX.Element, index: any) => (
                           <Text
                             as="li"
                             variant="body-default-m"
@@ -315,18 +316,18 @@ export default async function About({
             </>
           )}
 
-          {about.studies.display && (
+          {aboutResume.studies.display && (
             <>
               <Heading
                 as="h2"
-                id={about.studies.title}
+                id={aboutResume.studies.title}
                 variant="display-strong-s"
                 marginBottom="m"
               >
-                {about.studies.title}
+                {aboutResume.studies.title}
               </Heading>
               <Flex direction="column" fillWidth gap="l" marginBottom="40">
-                {about.studies.institutions.map((institution, index) => (
+                {aboutResume.studies.institutions.map((institution, index) => (
                   <Flex
                     key={`${institution.name}-${index}`}
                     fillWidth
@@ -348,18 +349,18 @@ export default async function About({
             </>
           )}
 
-          {about.technical.display && (
+          {aboutResume.technical.display && (
             <>
               <Heading
                 as="h2"
-                id={about.technical.title}
+                id={aboutResume.technical.title}
                 variant="display-strong-s"
                 marginBottom="40"
               >
-                {about.technical.title}
+                {aboutResume.technical.title}
               </Heading>
               <Flex direction="column" fillWidth gap="l">
-                {about.technical.skills.map((skill, index) => (
+                {aboutResume.technical.skills.map((skill, index) => (
                   <Flex
                     key={`${skill}-${index}`}
                     fillWidth
