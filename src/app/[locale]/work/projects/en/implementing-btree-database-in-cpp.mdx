@@ -1,0 +1,69 @@
+---
+title: "Implementing B+Tree Database in C++"
+publishedAt: "2025-03-17"
+summary: "Exploring performance benefits of indexing by implementing a B+Tree database in C++"
+image: "/images/projects/btree_db/banner.png"
+images:
+  - "/images/projects/btree_db/banner.png"
+team:
+  - name: "Zhu Zhanyan"
+    avatar: "/images/avatar.jpg"
+---
+
+## Overview
+
+As part of an assignment for Database-System Principles module, I designed and implemented a simple [B+Tree database system in C++](https://github.com/mrzzy/ntu-sc3020/tree/main/project1) to store and perform an aggregation query over NBA game statistics.
+The system consists of two main components:
+
+- **Storage** parsing Tab Seperated Values (TSV) data file, organising data into columar format sorted by key and storing it into fixed-sized data blocks on disk.
+- **Indexing** built B+Tree index with bulk loading to enable fast range queries on the `FG_PCT_home` attribute.
+  The project involves parsing raw TSV data, storing it in a columnar format
+
+The final implementation demonstrates the performance benefits of using a B+Tree for range queries compared to brute-force linear scans.
+
+## Key Features
+
+1. **Storage Component**:
+
+   - Data records were stored in fixed-size blocks aligned with the underlying filesystem block size for efficient disk I/O.
+   - Data records were stored **sorted** to allow for efficient binary search record querying.
+   - Columnar (Structure of Arrays) record storage format was used to improve cache locality by colocating multiple values of the same field.
+     This improved the overall performance of the aggregation query performed on the data.
+   - Data blocks were chained with a next pointer to handle data record overflows beyond a single block.
+
+2. **Indexing Component**:
+
+   - A B+Tree index was built on the `FG_PCT_home` attribute to enable fast range queries used to collect data records for the final aggregation.
+   - The B+Tree is built from sorted data records level by level using **bulk loading**.
+
+3. **Query Performance**:
+   - The system supports the aggregation query using both brute-force linear scan and index lookup methods.
+   - A `SpyStore` wraps a real `Store` implementation to used to collect storage performance metrics such the no. of data / index block accesses.
+
+#### Challenges & Learning Points
+
+1. **C++ Complexity**:
+
+   - As someone new to C++, I faced challenges with memory management and debugging undefined behaviors. For instance, an off-by-one error in a loop caused memory corruption that manifested in unrelated parts of the code. Using tools like Valgrind was crucial for identifying and fixing these issues.
+
+2. **Design Tradeoffs**:
+
+   - **Columnar Storage**: While columnar storage improved query performance by leveraging CPU cache locality, it added complexity to the implementation, especially when handling missing values and data alignment.
+   - **Bulk Loading**: Bulk loading the B+Tree was efficient but required careful handling of sorted data and node splitting. Balancing memory usage and disk I/O was a key consideration.
+   - **Single-User Assumption**: Simplifying the system by assuming a single-user environment allowed me to focus on core functionality but limited the system's scalability for concurrent access.
+
+3. **Debugging and Testing**:
+   - Debugging C++ code, especially memory-related issues, was time-consuming despite my use of the GDB debugger. I learned the importance of writing modular, testable code and using tools like Valgrind to catch memory errors early.
+   - Testing edge cases, such as missing values and duplicate keys, was critical to ensuring the robustness of the system.
+
+#### Outcome
+
+The same aggregation query over `FG_PCT_home` is executed with brute-force scan & index lookup methods to compare their performance characteristics:
+
+| Search Method      | Index Blocks Accessed | Data Blocks Accessed | Retrieval Time (µs) |
+| ------------------ | --------------------- | -------------------- | ------------------- |
+| B+ Tree Search     | 1                     | 57                   | 276                 |
+| Brute-force Search | 0                     | 437                  | 1935                |
+
+The indexed query was ~7x faster than the brute-force scan, accessing only 57 data blocks compared to 437.
+This highlights the importance of indexing in database systems.
