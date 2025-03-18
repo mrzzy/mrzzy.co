@@ -19,7 +19,14 @@ module.exports = {
           'custom-properties': false
         }
       }
+<<<<<<< HEAD
     ],
     "@tailwindcss/postcss",
+||||||| parent of 8c6858e (revert: "build: setup tailwindcss")
+    ],
+    '@tailwindcss/postcss'
+=======
+    ]
+>>>>>>> 8c6858e (revert: "build: setup tailwindcss")
   ]
 }
