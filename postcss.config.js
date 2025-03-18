@@ -19,6 +19,7 @@ module.exports = {
           'custom-properties': false
         }
       }
-    ]
+    ],
+    "@tailwindcss/postcss",
   ]
 }
