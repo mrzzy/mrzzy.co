@@ -12,11 +12,11 @@ team:
 
 ## Overview
 
-As part of an assignment for Database-System Principles module, I designed and implemented a simple [B+Tree database system in C++](https://github.com/mrzzy/ntu-sc3020/tree/main/project1) to store and perform an aggregation query over NBA game statistics.
+As part of an assignment for the Database Principles module, I designed and implemented a simple [B+Tree database system in C++ (GitHub)](https://github.com/mrzzy/ntu-sc3020/tree/main/project1) to store and perform an aggregation query over NBA game statistics.
 The system consists of two main components:
 
 - **Storage** parsing Tab Seperated Values (TSV) data file, organising data into columar format sorted by key and storing it into fixed-sized data blocks on disk.
-- **Indexing** built B+Tree index with bulk loading to enable fast range queries on the `FG_PCT_home` attribute.
+- **Indexing** built B+Tree index with bulk loading to enable fast aggregation query on the floating point `FG_PCT_home` attribute.
   The project involves parsing raw TSV data, storing it in a columnar format
 
 The final implementation demonstrates the performance benefits of using a B+Tree for range queries compared to brute-force linear scans.
@@ -24,6 +24,8 @@ The final implementation demonstrates the performance benefits of using a B+Tree
 ## Key Features
 
 1. **Storage Component**:
+
+   ![Data Block](/images/projects/btree_db/data_block.png)
 
    - Data records were stored in fixed-size blocks aligned with the underlying filesystem block size for efficient disk I/O.
    - Data records were stored **sorted** to allow for efficient binary search record querying.
@@ -33,7 +35,10 @@ The final implementation demonstrates the performance benefits of using a B+Tree
 
 2. **Indexing Component**:
 
+   ![B+Tree Index ](/images/projects/btree_db/index.png)
+
    - A B+Tree index was built on the `FG_PCT_home` attribute to enable fast range queries used to collect data records for the final aggregation.
+   - When used as a indexing key,`FG_PCT_home` is converted to equivalent integer representation to avoid floating point comparison issues.
    - The B+Tree is built from sorted data records level by level using **bulk loading**.
 
 3. **Query Performance**:
@@ -53,17 +58,45 @@ The final implementation demonstrates the performance benefits of using a B+Tree
    - **Single-User Assumption**: Simplifying the system by assuming a single-user environment allowed me to focus on core functionality but limited the system's scalability for concurrent access.
 
 3. **Debugging and Testing**:
+
    - Debugging C++ code, especially memory-related issues, was time-consuming despite my use of the GDB debugger. I learned the importance of writing modular, testable code and using tools like Valgrind to catch memory errors early.
    - Testing edge cases, such as missing values and duplicate keys, was critical to ensuring the robustness of the system.
+
+4. **Floating Point Comparison**
+
+   - `FG_PCT_home` is floating point attribute that is also used a key attribute used to identify data records and construct index.
+   - Direct comparison of floating point values is unrelable due to the precision loss of the floating point representation.
+   - `FG_PCT_home` is convert to equivalent integer representation for comparison with no loss in precision.
 
 #### Outcome
 
 The same aggregation query over `FG_PCT_home` is executed with brute-force scan & index lookup methods to compare their performance characteristics:
 
-| Search Method      | Index Blocks Accessed | Data Blocks Accessed | Retrieval Time (µs) |
-| ------------------ | --------------------- | -------------------- | ------------------- |
-| B+ Tree Search     | 1                     | 57                   | 276                 |
-| Brute-force Search | 0                     | 437                  | 1935                |
+<table>
+  <thead>
+    <tr>
+      <th>Search Method</th>
+      <th>Index Blocks Accessed</th>
+      <th>Data Blocks Accessed</th>
+      <th>Retrieval Time (µs)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>B+ Tree Search</td>
+      <td class="text-center">1</td>
+      <td class="text-center">57</td>
+      <td class="text-center">276</td>
+    </tr>
+    <tr>
+      <td>Brute-force Search</td>
+      <td class="text-center">0</td>
+      <td class="text-center">437</td>
+      <td class="text-center">1935</td>
+    </tr>
+  </tbody>
+</table>
+
 
 The indexed query was ~7x faster than the brute-force scan, accessing only 57 data blocks compared to 437.
 This highlights the importance of indexing in database systems.
