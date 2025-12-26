@@ -44,19 +44,18 @@ export default function Home() {
       <Column fillWidth horizontal="center" gap="m">
         <Column maxWidth="s" horizontal="center" align="center">
           {home.featured.display && (
+            <Badge
+              background="brand-alpha-weak"
+              paddingX="12"
+              paddingY="4"
+              onBackground="neutral-strong"
+              textVariant="label-default-s"
+              arrow={false}
+              href={home.featured.href}
+            >
+              <Row paddingY="2">{home.featured.title}</Row>
+            </Badge>
           )}
-
-          <Badge
-            background="brand-alpha-weak"
-            paddingX="12"
-            paddingY="4"
-            onBackground="neutral-strong"
-            textVariant="label-default-s"
-            arrow={false}
-            href={home.featured.href}
-          >
-            <Row paddingY="2">{home.featured.title}</Row>
-          </Badge>
 
           <Heading wrap="balance" variant="display-strong-l">
             {home.headline}

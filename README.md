@@ -32,11 +32,9 @@ Adding a new Project writeup:
 2. Place image assets in `public/images`.
    - Reference paths relative `/public` as root in code.
 
-## Resume
+### Resume
 
-Typically, adjust `const about` in `src/app/resources/content.js` to alter resume.
-
-> For me: Since this website deployment is linked the [resume repository](https://github.com/mrzzy/resume), alter the `src/content.json` file in that repository instead. An actions workflow would automatically be triggered to synchronise changes into this repository.
+Since this website deployment is linked the [resume repository](https://github.com/mrzzy/resume), alter the `src/content.json` file in that repository instead. An actions workflow would automatically be triggered to synchronise changes into this repository.
 
 ## Acknowledgements
 
