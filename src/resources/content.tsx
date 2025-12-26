@@ -9,6 +9,7 @@ import {
   Work,
 } from "@/types";
 import { Line, Row, SmartLink, Text } from "@once-ui-system/core";
+import { mergeResume } from "./mergeResume";
 
 const person: Person = {
   firstName: "Zhu",
@@ -96,7 +97,8 @@ const home: Home = {
   ),
 };
 
-const about: About = {
+// overidde about page with resume content
+const about: About = await mergeResume({
   path: "/about",
   label: "About",
   title: `About – ${person.name}`,
@@ -246,7 +248,7 @@ const about: About = {
       },
     ],
   },
-};
+});
 
 const blog: Blog = {
   path: "/blog",
