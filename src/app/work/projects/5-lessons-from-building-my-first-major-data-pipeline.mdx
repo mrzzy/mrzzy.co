@@ -14,23 +14,23 @@ team:
 
 During my internship at Inland Revenue Authority of Singapore (IRAS) in 2025, I was tasked with operationalising the data refresh process for an internal RAG application for email generation. Retrieval Augmented Generation (RAG), first introduced by (Lewis et al., 2021), aims to support LLMs in generating more factual, contextually aware answers by supporting its retrieval capabilities with contextually relevant snippets. Here are 5 lessons learnt my experience building a pipeline using Kedro that prepares the vector database (LanceDB) used to supply relevant snippets to the RAG application.
 
-### 1. The First Solution Might Not Be The Right Way
+## 1. The First Solution Might Not Be The Right Way
 
 Sometimes, the first solution you arrive at might not be the right one. After a data refresh, we noticed that the RAG application was unable to properly retrieve snippets from the LanceDB vector database. A simple restart of the backend was able to resolve the issue. However, when it came time to automate this restart, we found it nontrivial to assign the data pipeline with only the necessary permissions. On one hand, Role-Based Access Control roles provided by Azure were too broad, whereas introducing a custom role would hinder project timelines as it required coordination with an external party.
 
 At this impasse, we stepped back to reassess whether this approach was appropriate and to evaluate alternative solutions. As it turns out, it was possible to add an admin API endpoint to reload the LanceDB connection programmatically, which can then be triggered by the pipeline by a simple API call. This "hot reload" approach had an additional advantage of avoiding a backend restart and the downtime it incurs
 
-### 2. Treating Personally Identifiable Information with Care
+## 2. Treating Personally Identifiable Information with Care
 
 As a government agency, IRAS deals with PII data from citizens that demands special care to avoid unintentional disclosure. PII masking and removal steps were including in the data pipeline to redact PII information before the data is sent to the LLM API, reducing the risk of an unintended PII leak
 
 ![PII Asking Process](/images/projects/swee_etl/pii_masking.png)
 
-### 3. Nothing Beats a Real World Production Test
+## 3. Nothing Beats a Real World Production Test
 
 Despite employing defensive engineering, there are issues that cannot be foreseen without a full deployment of the pipeline on actual data. Mock data had to be expanded to capture cases present in real data that were missed. API rate limits were resolved by introducing a batch size to pace the pipeline's request load, while automatic retries were added to handle transient failures. A deadletter queue was added to handle poison pill messages causing the pipeline to fail near completion. While it was possible resolve many issues with unit testing, some issues can only rear their heads in production.
 
-### 4. Designing for Change
+## 4. Designing for Change
 
 Within an evolving business environment, the astute developer anticipates that requirements would inevitably change and shapes his code to be malleable to such changes by creating well defined abstractions, reducing code duplication by applying the "Don't Repeat Yourself" principle. Indeed, during the course of the project, an additional table was added to processing requirements while a separate output requirement was added to repurpose the masked data for another project. Adapting these changes was relatively simple since changes were isolated behind Kedro's nodes and parameters abstractions.
 
@@ -50,7 +50,7 @@ Within an evolving business environment, the astute developer anticipates that r
 
 ```
 
-### 5. Observability
+## 5. Observability
 
 As the pipeline deployed to a Staging environment and Production environment, bugs were fewer in between but harder to identify and fix. In these environments, observability via logging was critical to understanding and resolving issues as more interactive methods, such as using a debugger, were unavailable. We adapted a logfmt inspired logging format to add contextual information to logs improve traceability which paid off when used to isolate issues in gated deployment environments.
 

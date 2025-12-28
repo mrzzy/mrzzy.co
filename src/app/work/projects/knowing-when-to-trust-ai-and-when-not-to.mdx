@@ -1,0 +1,43 @@
+---
+title: "Knowing When to Trust AI (And When Not To)"
+publishedAt: "2025-12-28"
+summary: "Understanding the benefits and Limits of the use of AI in Software Engineering"
+image: "/images/projects/trust_ai/banner.png"
+images:
+  - "/images/projects/trust_ai/banner.png"
+team:
+  - name: "Zhu Zhanyan"
+    avatar: "/images/avatar.jpg"
+---
+
+# Knowing When to Trust AI (And When Not To)
+
+Among my peers, one fear that keeps resurfacing is that AI is coming for our jobs. After all, who wouldn't feel a little queasy if LLMs can write code, better, faster than you ever could after years of study? When GPT models first shattered the market, I was hesitant. The code generated was believable, but of questionable quality.
+
+With the introduction of ChatGPT 4.0, my perspective shifted after been shown firsthand by a friend the frigthening strides made in code generation. In 2025, I was assigned the task of a migrating legacy SAS system to a open source SQL stack during my Internship at the Inland Revenue Authority of Singapore (IRAS). The original SAS system was responsible for preparing features for refund fraud risk analysis model that IRAS used internally to flag risky refunds for inspection.
+
+## The Good
+
+AI understands, so you don't have to. Having never worked prior with any product in the SAS analytics ecosystem, staring at SAS was akin to staring at French... there was some resemblance of a data transformation happening. But now I don't have to, I can ask GPT to explain code snippets to me. Gone are the days of spending buckets of time pouring over documentation, trying to get up to speed quickly for a new project. With AI, you can just dive n, asking it to provide as much context as needed, asking questions to clarify your understanding. LLMs are simply excellent as a learning device.
+
+![Example SAS to SQL Conversion](/images/projects/trust_ai/sas_sql.png)
+
+LLMs are also excellent at closed form code generation. Ask Copilot to generate the body of a well-defined interface, and it produces something about 80% complete. The same goes for documentation, unit test, PR descriptions etc. Most of this migration task fits neatly in this mold, I used LLMs to generate an 80% draft of conversion from SAS's `data` expressions to SQL's Common Table Expressions (CTE), before making some manual edits to finish the job. The developer workflow is greatly accelerated by AI.
+
+## The Bad
+
+LLM's code generation capabilities falter where there is a lack of business context. One of the last features slated for migration is `FIRST_CLAIMS_X_MTHS`. As usual, I asked GPT to both explain and generate an initial draft of the conversion. But this time it didn't work: I was more confused after reading its explanation and the code generated was likewise wrong. No amount of back and forth with GPT would get us satisfactory result. Finally caving in, I report to my supervisors that it was simply not possible to convert `FIRST_CLAIMS_X_MTHS`. The reason was that GPT kept insisting on recursive CTEs since the original SAS code was iterative, but those were not supported on SQLite we were using for inference data processing.
+
+Towards the end of my internship, I was motivated to give it another shot. Having established communication channels with colleagues, I refined my understanding of which fields did what, what each line of the SAS code was meant to do. Then it hit me: the feature could be implemented with standard SQL window functions, avoiding a recursive CTE. Misguided into thinking that conversion was impossible, `FIRST_CLAIMS_X_MTHS` was finally implemented was sufficient business context and a quick refresher on SQL window functions (from GPT of course).
+
+## The Ugly
+
+In my opinion, as one moves higher in the realm of software engineering activities, the more unhelpful the outputs from LLMs become. Ask it to come up with an split architecture for training / inference commonly seen in Machine Learning System and it starts to spew gibberish about S3, Snowflake, ... while we were in an air-gapped Azure environment. Sure, one could guide LLMs eventually to an acceptable solution by informing of relevant context, but of the time of writing, it takes so much back-and-forth that one would probably be more productive to derive the design by hand.
+
+![Jinja Compatibility Macro](/images/projects/trust_ai/jinja_compat.png)
+
+Due to their predictive nature of its design, LLMs cannot innovate. It can come up with the most common solution, but not necessarily the optimal one. In high risk activities as in system design, we are after the best one to avoid costly rewrites. To handle different data processing in training and inference, I designed and implemented Jinja-based SQL transpiler to run on Azure Synapse Warehouse (Spark) and SQLite respectively. This reduced code duplication by consolidating feature processing logic in one place. LLMs would have suggested I use Data Build Tool (DBT) but this would have been the wrong choice, as DBT wasn't available in our internal artifact repository, and adding it would take too long.
+
+![SQL Transpilation System Design](/images/projects/trust_ai/sql_transpile.png)
+
+While AI has made massive strides that cannot be ignored, we also cannot blindly trust the output of LLMs to do all our work. Software Engineers are still necessary for software development... for now.
