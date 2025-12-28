@@ -88,11 +88,7 @@ const home: Home = {
   subline: (
     <>
       👋 Hey, Zhanyan here.
-      <br /> I&apos;m a passionate Software Engineer with a Data Engineering
-      focus, <br /> currently studying
-      <SmartLink href="https://www.ntu.edu.sg/education/undergraduate-programme/bachelor-of-computing-in-computer-science">
-        Computer Science as an undergraduate at NTU.
-      </SmartLink>
+      <br /> I&apos;m a passionate Software Engineer with a Data Engineering focus.
     </>
   ),
 };
