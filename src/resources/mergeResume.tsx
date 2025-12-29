@@ -1,6 +1,6 @@
 import { about } from './content';
 
-const RESUME_URL = "https://raw.githubusercontent.com/mrzzy/resume/96350518fab82869efd78688a5c6330a8eeef645/src/content.json";
+const RESUME_URL = "https://raw.githubusercontent.com/mrzzy/resume/eace69b5f10c74fbaceeccba19920c7b519568e3/src/content.json";
 
 /** Augment about.content with content from resume. */
 type About = typeof about;
