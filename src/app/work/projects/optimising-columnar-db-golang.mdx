@@ -1,10 +1,10 @@
 ---
-title: "Designing, Implementing &amp; Optimising a Columnar Store in Golang"
-publishedAt: 2026-05-11
+title: "Designing, Implementing & Optimising a Columnar Store in Golang"
+publishedAt: "2026-05-11"
 summary: "Designing, Implementing and Optimising a Columnar Store in Golang, Achieving 150x Speedup over Baseline"
 image: "/images/projects/hdb_db/banner.png"
 images:
-  - "images/projects/hdb_db/banner.png"
+  - "/images/projects/hdb_db/banner.png"
 team:
   - name: Gay Ming Kai
   - name: Lim Li Ping Joey
@@ -30,7 +30,7 @@ We loosely replicate the storage organisation in the popular Parquet file format
 -  **Sorted Order** We sort rows in order of advancing timestamp order. This allows us to perform data skipping later when evaluating the time window predicate at query time.
 
 
-![SC4023 File Format](images/projects/hdb_db/file_format.png)
+![SC4023 File Format](/images/projects/hdb_db/file_format.png)
 
 
 **Figure 1: Column Store File Format**
@@ -52,24 +52,59 @@ We assume the common case where data is stored and queried with the same machine
 
 **Table 1: Integer Data Encodings**
 
-| Encoding                  | Description                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| None                      | Integer values are encoded by writing them sequentially, one after another.                                                                                                                                                                                                                                                                                 |
-| Run Length Encoding (RLE) | RLE encodes repeating runs of identical integer values are encoded as (N, count) pairs with each pair costing just 8 bytes instead of the N * 4 (int32) bytes of the **None** encoding method.                                                                                                                                                              |
-| Bitpacking                | Bitpacking encodes integers in the minimal no. of bits $b$ required to represent the value. For a numeric range [min, max], there are max - min + 1 number of possible values, thus $b$ is defined as:<br>$$b = \lceil \log_2(v_{max} - v_{min} + 1) \rceil$$<br>Bitpacking tightly packs values into minimal bits, reducing its storage footprint on disk. |
-| Hybrid (Bitpacking + RLE) | Hybrid encoding dynamically selects Bitpacking and RLE compression encodings based on column values. RLE encoding is selected a contiguous run of 200 or more identical values is identified. Otherwise, bitpacking is used.                                                                                                                                |
+<table>
+  <thead>
+    <tr>
+      <th>Encoding</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>None</td>
+      <td>Integer values are encoded by writing them sequentially, one after another.</td>
+    </tr>
+    <tr>
+      <td>Run Length Encoding (RLE)</td>
+      <td>RLE encodes repeating runs of identical integer values are encoded as (N, count) pairs with each pair costing just 8 bytes instead of the N * 4 (int32) bytes of the **None** encoding method.</td>
+    </tr>
+    <tr>
+      <td>Bitpacking</td>
+      <td>Bitpacking encodes integers in the minimal no. of bits $b$ required to represent the value. For a numeric range [min, max], there are max - min + 1 number of possible values, thus $b$ is defined as:<br/>$$b = \lceil \log_2(v_{max} - v_{min} + 1) \rceil$$<br/>Bitpacking tightly packs values into minimal bits, reducing its storage footprint on disk.</td>
+    </tr>
+    <tr>
+      <td>Hybrid (Bitpacking + RLE)</td>
+      <td>Hybrid encoding dynamically selects Bitpacking and RLE compression encodings based on column values. RLE encoding is selected a contiguous run of 200 or more identical values is identified. Otherwise, bitpacking is used.</td>
+    </tr>
+  </tbody>
+</table>
+
 
 #### String Encodings
 String is written as a length character count followed by byte array of ascii characters.
 
 **Table 2: String Data Encodings**
 
-| Encoding   | Description                                                                                                                                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| None       | String values are encoded by writing them sequentially, one after another.                                                                                                                           |
-| Dictionary | Each unique string is encode once in a dictionary and every occurrence is replaced with a 4 byte integer index. Dictionary encoding significantly reduces storage cost where strings are duplicated. |
+<table>
+  <thead>
+    <tr>
+      <th>Encoding</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>None</td>
+      <td>String values are encoded by writing them sequentially, one after another.</td>
+    </tr>
+    <tr>
+      <td>Dictionary</td>
+      <td>Each unique string is encode once in a dictionary and every occurrence is replaced with a 4 byte integer index. Dictionary encoding significantly reduces storage cost where strings are duplicated.</td>
+    </tr>
+  </tbody>
+</table>
 
-![Big Data Writeup Dataset No. of Rows vs Distinct Values by Column](images/projects/hdb_db/column_cardinality.png)
+![Big Data Writeup Dataset No. of Rows vs Distinct Values by Column](/images/projects/hdb_db/column_cardinality.png)
 
 **Figure 2. Dataset No. of Rows vs Distinct Values by Column** 
 
@@ -86,14 +121,39 @@ Subsequently, the selectivity of a predicate is estimated with these heuristics
   * **Inequality Conditions (\<, \<=, \=\>, \> )** We assume that  $\frac{1}{3}$ of all rows would be selected by the predicate.  
   * **Equality Conditions (=)** k/D rows would be selected by the predicate where D is the number of distinct values in the column and k is the no. values that can match.
 
-**Table 3: Query Planning Predicate Evaluation Order **
+**Table 3: Query Planning Predicate Evaluation Order**
 
-| Predicate Type      | Cardinality Estimate | Evaluation Order |
-| ------------------- | -------------------- | ---------------- |
-| TimeWindowPredicate | 207389               | 4th              |
-| MaxPricePerSqm      | 86412                | 3rd              |
-| MinSquareMeters     | 86412                | 2nd              |
-| TownPredicate       | 77771                | 1st              |
+<table>
+  <thead>
+    <tr>
+      <th>Predicate Type</th>
+      <th>Cardinality Estimate</th>
+      <th>Evaluation Order</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>TimeWindowPredicate</td>
+      <td>207389</td>
+      <td>4th</td>
+    </tr>
+    <tr>
+      <td>MaxPricePerSqm</td>
+      <td>86412</td>
+      <td>3rd</td>
+    </tr>
+    <tr>
+      <td>MinSquareMeters</td>
+      <td>86412</td>
+      <td>2nd</td>
+    </tr>
+    <tr>
+      <td>TownPredicate</td>
+      <td>77771</td>
+      <td>1st</td>
+    </tr>
+  </tbody>
+</table>
 Using estimated selectivity, we rank predicates for execution prioritising more restrictive predicates for execution first.
 ## Data Pruning 
 
@@ -115,7 +175,7 @@ Once matching positions have been identified the user selected column values are
 
 ## Optimisation: Achieving a 150x Speedup
 
-![Effect of Optimisations on Query Runtimes](images/projects/hdb_db/optimisations.png)
+![Effect of Optimisations on Query Runtimes](/images/projects/hdb_db/optimisations.png)
 
 **Figure 3: Effect on Optimisations on Store and Query Runtimes**
 
@@ -123,15 +183,60 @@ Once a working prototype was created, we shifted our efforts to improving the pe
 
 **Table 4: Effect on Optimisations on Store and Query Runtimes**
 
-| Optimisation                         | Store Time (s) | Query Time (s) | Baseline Speedup (Query) |
-| ------------------------------------ | -------------- | -------------- | ------------------------ |
-| Baseline                             | 8.286          | 20.508         | 1.00x                    |
-| No Page Size Estimation              | 5.445          | 15.429         | 1.33x                    |
-| RLE, Bitpacking, Dictionary Encoding | 3.014          | 6.661          | 3.08x                    |
-| Bloom Filter                         | 2.635          | 6.51           | 3.15x                    |
-| Shared Scan                          | 2.688          | 1.008          | 20.35x                   |
-| Column at a Time                     | 2.989          | 0.368          | 55.73x                   |
-| Page Row Count = 1024                | 3.837          | 0.136          | 150.79x                  |
+<table>
+  <thead>
+    <tr>
+      <th>Optimisation</th>
+      <th>Store Time (s)</th>
+      <th>Query Time (s)</th>
+      <th>Baseline Speedup (Query)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Baseline</td>
+      <td>8.286</td>
+      <td>20.508</td>
+      <td>1.00x</td>
+    </tr>
+    <tr>
+      <td>No Page Size Estimation</td>
+      <td>5.445</td>
+      <td>15.429</td>
+      <td>1.33x</td>
+    </tr>
+    <tr>
+      <td>RLE, Bitpacking, Dictionary Encoding</td>
+      <td>3.014</td>
+      <td>6.661</td>
+      <td>3.08x</td>
+    </tr>
+    <tr>
+      <td>Bloom Filter</td>
+      <td>2.635</td>
+      <td>6.51</td>
+      <td>3.15x</td>
+    </tr>
+    <tr>
+      <td>Shared Scan</td>
+      <td>2.688</td>
+      <td>1.008</td>
+      <td>20.35x</td>
+    </tr>
+    <tr>
+      <td>Column at a Time</td>
+      <td>2.989</td>
+      <td>0.368</td>
+      <td>55.73x</td>
+    </tr>
+    <tr>
+      <td>Page Row Count = 1024</td>
+      <td>3.837</td>
+      <td>0.136</td>
+      <td>150.79x</td>
+    </tr>
+  </tbody>
+</table>
 
 
 > Speedup reported is relative to baseline.
@@ -143,10 +248,27 @@ We observe in the `pprof` profile trace that a disproportionate amount of time i
 
 **Table 5: Effect on Page Size Estimation on Store and Query Runtimes**
 
-| Optimisation              | Store Time (s) | Query Time (s) |
-| ------------------------- | -------------- | -------------- |
-| With Page Size Estimation | 8.286          | 20.508         |
-| No Page Size Estimation   | 5.445          | 15.429         |
+<table>
+  <thead>
+    <tr>
+      <th>Optimisation</th>
+      <th>Store Time (s)</th>
+      <th>Query Time (s)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>With Page Size Estimation</td>
+      <td>8.286</td>
+      <td>20.508</td>
+    </tr>
+    <tr>
+      <td>No Page Size Estimation</td>
+      <td>5.445</td>
+      <td>15.429</td>
+    </tr>
+  </tbody>
+</table>
 ### Shared Scan
 Profile Trace showing IO bottleneck
 
@@ -154,23 +276,57 @@ We also observe from the the profiler trace query runtimes was dominated by the 
 
 **Table 6: Effect on Shared Scan on and Query Runtimes**
 
-| Optimisation         | Store Time (s) | Query Time (s) |
-| --------------- | -------------- | -------------- |
-| Multiple Scans  | 2.635          | 6.51           |
-| Shared Scan | 2.669          | 1.05           |
+<table>
+  <thead>
+    <tr>
+      <th>Optimisation</th>
+      <th>Store Time (s)</th>
+      <th>Query Time (s)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Multiple Scans</td>
+      <td>2.635</td>
+      <td>6.51</td>
+    </tr>
+    <tr>
+      <td>Shared Scan</td>
+      <td>2.669</td>
+      <td>1.05</td>
+    </tr>
+  </tbody>
+</table>
 ### Column at a Time
 Another cause of the IO bottleneck observed in the profiler trace is our original query algorithm. The original query algorithm only performed page-level data pruning, then proceeded to read full pages into memory with all columns. Despite storing data in a columnar fashion,, this query pattern made our column store a "row store" since the full row is materialised.  We rectified this by switching to a Column-At-A-Time query pattern. Columns are read into memory and predicates applied one by one in most selective first order to reduce redundant IO operations. Switching to a Column at a Time Query pattern resulting in a 2.74x speedup.
 
 **Table 7: Effect on Column a Time Query Pattern on and Query Runtimes**
 
-| Optimisation              | Store Time (s) | Query Time (s) |
-| -------------------- | -------------- | -------------- |
-| All Columns Per Page | 2.688          | 1.008          |
-| Column at a Time     | 2.989          | 0.368          |
+<table>
+  <thead>
+    <tr>
+      <th>Optimisation</th>
+      <th>Store Time (s)</th>
+      <th>Query Time (s)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>All Columns Per Page</td>
+      <td>2.688</td>
+      <td>1.008</td>
+    </tr>
+    <tr>
+      <td>Column at a Time</td>
+      <td>2.989</td>
+      <td>0.368</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Page Row Count Tuning
 
-![Big Data Writeup Storage Query Runtimes](images/projects/hdb_db/row_count_tuning.png)
+![Big Data Writeup Storage Query Runtimes](/images/projects/hdb_db/row_count_tuning.png)
 
 **Figure 4: Effect on Page Row Count on Store and Query Runtimes**
 
@@ -178,23 +334,108 @@ The effectiveness of the PAX data storage layout is dependent on choosing the op
 
 **Table 8: Effect on Page Row Count on Store and Query Runtimes**
 
-| Row Count | Store Time (s) | Query Time (s) | Remarks                                             |
-|:--------- | -------------- | -------------- |:--------------------------------------------------- |
-| 1         | 73.298         | 12.957         | Effectively a row store                             |
-| 4         | 19.694         | 3.337          |                                                     |
-| 16        | 8.145          | 0.856          |                                                     |
-| 64        | 5.014          | 0.267          |                                                     |
-| 255       | 4.064          | 0.193          |                                                     |
-| 1018      | 3.635          | 0.182          |                                                     |
-| 1256      | 3.586          | 0.186          |                                                     |
-| 1500      | 3.517          | 0.183          |                                                     |
-| 2500      | 3.456          | 0.2            |                                                     |
-| 3500      | 3.375          | 0.22           |                                                     |
-| 4066      | 3.307          | 0.197          |                                                     |
-| 16243     | 2.989          | 0.368          |                                                     |
-| 64890     | 2.889          | 0.696          |                                                     |
-| 259237    | 2.813          | 2.35           | All rows in 1 page, No page level pruning possible. |
-| 1024      | 3.718          | 0.169          | Best page size                                      |
+<table>
+  <thead>
+    <tr>
+      <th>Row Count</th>
+      <th>Store Time (s)</th>
+      <th>Query Time (s)</th>
+      <th>Remarks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>73.298</td>
+      <td>12.957</td>
+      <td>Effectively a row store</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>19.694</td>
+      <td>3.337</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>8.145</td>
+      <td>0.856</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>64</td>
+      <td>5.014</td>
+      <td>0.267</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>255</td>
+      <td>4.064</td>
+      <td>0.193</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>1018</td>
+      <td>3.635</td>
+      <td>0.182</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>1256</td>
+      <td>3.586</td>
+      <td>0.186</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>1500</td>
+      <td>3.517</td>
+      <td>0.183</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2500</td>
+      <td>3.456</td>
+      <td>0.2</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3500</td>
+      <td>3.375</td>
+      <td>0.22</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4066</td>
+      <td>3.307</td>
+      <td>0.197</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>16243</td>
+      <td>2.989</td>
+      <td>0.368</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>64890</td>
+      <td>2.889</td>
+      <td>0.696</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>259237</td>
+      <td>2.813</td>
+      <td>2.35</td>
+      <td>All rows in 1 page, No page level pruning possible.</td>
+    </tr>
+    <tr>
+      <td>1024</td>
+      <td>3.718</td>
+      <td>0.169</td>
+      <td>Best page size</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Conclusion
 In this project, we designed and implemented a columnar database from first principles, exploring how storage layout, compression, metadata, and query execution strategies influence analytical query performance. Systematic profiling and optimisation proved essential to achieving practical performance. By introducing techniques such as compression encodings, shared scans, column-at-a-time execution, metadata-driven pruning, and empirical page-size tuning, query runtime improved by over **150x** relative to baseline. Engineering performant software requires careful reasoning about memory access, I/O bottlenecks, and execution patterns.
@@ -202,9 +443,15 @@ In this project, we designed and implemented a columnar database from first prin
 
 ## References
 [1]: X. Zeng, Y. Hui, J. Shen, A. Pavlo, W. McKinney, and H. Zhang, ‘An Empirical Evaluation of Columnar Storage Formats’, Nov. 07, 2023, _arXiv_: arXiv:2304.05028. doi: [10.48550/arXiv.2304.05028](https://doi.org/10.48550/arXiv.2304.05028).
+
 [2]:  Bits-and-Blooms, ‘bloom/bloom.go at master · bits-and-blooms/bloom’, GitHub. Accessed: Apr. 22, 2026. [Online]. Available: [https://github.com/bits-and-blooms/bloom/blob/master/bloom.go](https://github.com/bits-and-blooms/bloom/blob/master/bloom.go)
+
 [3]: M. Stonebraker _et al._, ‘C-store: a column-oriented DBMS’, in _Making Databases Work: the Pragmatic Wisdom of Michael Stonebraker_, 1st edn, Massachusetts Institute of Technology and M. L. Brodie, Eds, Association for Computing Machinery, 2018, pp. 491–518. doi: [10.1145/3226595.3226638](https://doi.org/10.1145/3226595.3226638).
+
 [4]: A. Ailamaki, D. J. DeWitt, and M. D. Hill, ‘Data page layouts for relational databases on deep memory hierarchies’, _The VLDB Journal The International Journal on Very Large Data Bases_, vol. 11, no. 3, pp. 198–215, Nov. 2002, doi: [10.1007/s00778-002-0074-9](https://doi.org/10.1007/s00778-002-0074-9).
+
 [5]:  _google/pprof_. (May 23, 2026). Go. Google. Accessed: May 23, 2026. [Online]. Available: [https://github.com/google/pprof](https://github.com/google/pprof)
+
 [6]: 262588213843476, ‘Latency Numbers Every Programmer Should Know’, Gist. Accessed: Apr. 03, 2026. [Online]. Available: [https://gist.github.com/jboner/2841832](https://gist.github.com/jboner/2841832)
+
 [7]: ‘SC4023 Big Data Management Semester Group Project’. College of Computing and Data Science, Nanyang Technological University.
