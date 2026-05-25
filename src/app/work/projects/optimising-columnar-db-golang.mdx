@@ -1,0 +1,210 @@
+---
+title: "Designing, Implementing &amp; Optimising a Columnar Store in Golang"
+publishedAt: 2026-05-11
+summary: "Designing, Implementing and Optimising a Columnar Store in Golang, Achieving 150x Speedup over Baseline"
+image: "/images/projects/hdb_db/banner.png"
+images:
+  - "public/images/projects/hdb_db/banner.png"
+team:
+  - name: Gay Ming Kai
+  - name: Lim Li Ping Joey
+  - name: Zhu Zhanyan
+    avatar: /images/avatar.jpg
+---
+
+# Introduction
+As part of SC4023 Big Data Group project, we implemented a Columnar Database [(Source Code)](https://github.com/MingKaiDev/SC4023-Big-Data-Management-Project), to evaluate a simple query on tabular data imported from a CSV. 
+- **First Principles** We designed our columnar store from first principles, applying Column Store techniques such as a PAX storage layout, Column at a Time Query Pattern etc.
+- **Optimisation** We systematically apply optimisations to radically improve the system's query performance, achieving a 150x speedup over original baseline performance. 
+
+### Implementation Language
+While prior art [^7]  has opted for like Python for its simplicity, we chose Go for the out-of-the-box performance benefits of a compiled language. As a modern systems language, Golang features developer conveniences such as a garbage collector for memory management and a fleshed out standard library with extensive utilities for system development. Golang is also significantly more popular than other systems languages like Rust, reducing developer onboarding times.
+
+## The Write Path: How Data is Stored
+In a world of row-oriented Relational databases, the C-Store paper [^3] first popularised the idea of storing column values contiguously to optimise for analytical query pattern aggregated over a few columns. The authors of the PAX paper [^4] proposes a hybrid approach balanced trade-offs between row and column oriented storage by storing columns of a subset of rows contiguously within a disk page.
+
+### Storage Layout
+We loosely replicate the storage organisation in the popular Parquet file format [^1] in the file format organisation of our columnar store. We also make the following adjustments to the storage layout to optimise the read path:
+- **PAX Storage Layout** Each page stores only a subset of rows of the full dataset. The number of rows packed into page is chosen empirically as described in the optimisation section.
+- **Trailing Footer** We write our file footer after all data pages are written to gather file statistics for the footer in the same pass of the data as the one used to write the data. This allows write statistics and data to be written in 1 pass the data instead of two passes needed should the footer be written first.
+-  **Sorted Order** We sort rows in order of advancing timestamp order. This allows us to perform data skipping later when evaluating the time window predicate at query time.
+
+
+![SC4023 File Format](public/images/projects/hdb_db/file_format.png)
+
+
+**Figure 1: Column Store File Format**
+
+### File Footer
+We embed various metadata (eg. write statistics) into the file footer on write to enable query time optimisations on the read path.
+- **File Offset** We save page and column chunk offsets when writing them to disk in the file footer. This allows efficient reads of specific pages & column chunks at query time by allowing the storage engine to seek directly to the queried data without having to rest of the file.
+- **Zone Map** We track zone map statistics (min value, max value) in file footer to perform data skipping at query time by avoiding pages with values range outside the queried range.
+- **Column Statistics** such as row counts and cardinality are tracked in the file footer for used in query predicate cardinality / selectivity estimation to determine column query order.
+- **Bloom Filters** Bloom filters created for categorical columns and stored in the file footer. They provide probabilistic data skipping by excluding from scanning when definitively exclude the queried value(s). We used an external library to provide the Bloom Filter implementation [^2].
+### Type System
+To keep the type system lean, we avoided supported floats, opting to only implement integer and string types. Instead, we opted for floating point workarounds, such as storing rounded integer equivalents or recomputation of the desired floating point value at query time. This simplification kept the project scope in check.
+
+### Data Encoding
+Storing column values together facilitates compression encodings that reduce the size of stored data on disk. Since CPUs generally execute more instructions than a disk storage can read / write [^6], trading off more compute for a smaller storage footprint using compression is typically a desirable choice.
+
+#### Integer Encodings
+We assume the common case where data is stored and queried with the same machine architecture. Since most modern Intel, AMD and ARM CPUs are Little Endian, we encode all integers in the same byte order to avoid the overhead of a byte-order swapping conversion.
+
+**Table 1: Integer Data Encodings**
+
+| Encoding                  | Description                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| None                      | Integer values are encoded by writing them sequentially, one after another.                                                                                                                                                                                                                                                                                 |
+| Run Length Encoding (RLE) | RLE encodes repeating runs of identical integer values are encoded as (N, count) pairs with each pair costing just 8 bytes instead of the N * 4 (int32) bytes of the **None** encoding method.                                                                                                                                                              |
+| Bitpacking                | Bitpacking encodes integers in the minimal no. of bits $b$ required to represent the value. For a numeric range [min, max], there are max - min + 1 number of possible values, thus $b$ is defined as:<br>$$b = \lceil \log_2(v_{max} - v_{min} + 1) \rceil$$<br>Bitpacking tightly packs values into minimal bits, reducing its storage footprint on disk. |
+| Hybrid (Bitpacking + RLE) | Hybrid encoding dynamically selects Bitpacking and RLE compression encodings based on column values. RLE encoding is selected a contiguous run of 200 or more identical values is identified. Otherwise, bitpacking is used.                                                                                                                                |
+
+#### String Encodings
+String is written as a length character count followed by byte array of ascii characters.
+
+**Table 2: String Data Encodings**
+
+| Encoding   | Description                                                                                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| None       | String values are encoded by writing them sequentially, one after another.                                                                                                                           |
+| Dictionary | Each unique string is encode once in a dictionary and every occurrence is replaced with a 4 byte integer index. Dictionary encoding significantly reduces storage cost where strings are duplicated. |
+
+![Big Data Writeup Dataset No. of Rows vs Distinct Values by Column](public/images/projects/hdb_db/column_cardinality.png)
+
+**Figure 2. Dataset No. of Rows vs Distinct Values by Column** 
+
+We can observe extensive duplication of the input data by the relatively low number of distinct string column values when compared to dataset row counts. This makes dictionary encoding highly desirable for column storage footprint compression.
+
+## The Read Path: How the data is queried
+The Columnar Database first performs Query Planning to determine order of execution that minimises the size of intermediate results. It then performs Data Pruning to reduce the amount data scanned to evaluate the query. Finally the query is executed in a column-by-column fashion with the results gathered and returned to the user.
+
+### Query Planning
+A Query is first decomposed into a set of predicates to be evaluated on different columns. Query Planning is then performed by the Database to determine the order of query predicate evaluation. The idea is to evaluate the most selective predicate first to reduce the amount of data scanned for subsequent queries early.
+
+Subsequently, the selectivity of a predicate is estimated with these heuristics
+* **Cardinality Estimation** is performed for each predicate to estimate the number of rows that satisfy the condition and to approximate its selectivity (fraction of rows returned).  
+  * **Inequality Conditions (\<, \<=, \=\>, \> )** We assume that  $\frac{1}{3}$ of all rows would be selected by the predicate.  
+  * **Equality Conditions (=)** k/D rows would be selected by the predicate where D is the number of distinct values in the column and k is the no. values that can match.
+
+**Table 3: Query Planning Predicate Evaluation Order **
+
+| Predicate Type      | Cardinality Estimate | Evaluation Order |
+| ------------------- | -------------------- | ---------------- |
+| TimeWindowPredicate | 207389               | 4th              |
+| MaxPricePerSqm      | 86412                | 3rd              |
+| MinSquareMeters     | 86412                | 2nd              |
+| TownPredicate       | 77771                | 1st              |
+Using estimated selectivity, we rank predicates for execution prioritising more restrictive predicates for execution first.
+## Data Pruning 
+
+ Data pruning is performed by the Database to reduce the number of pages that are eligible for scanning using in memory metadata read from the Database footer:
+* **Aggregate Predicates** An aggregate query is constructed that matches rows from all queries in shared scan by keeping the broadest predicate from all queries. This allows us to derive a set of aggregate predicates for data pruning.
+* **Zone Map Pruning** Pages are pruned if predicate condition selects for values outside of their stored value range as defined by their respective zone map statistics.
+* **Membership Pruning**  The Bloom Filters of Categorical Columns for possible matches before scanning. If the Filter definitively determines that there are no matches, the page / column chunk is skipped from scanning.
+
+Empirical results demonstrate these data pruning strategies are highly effective: Out of the full 254 pages in the Columnar Database, about 94% (240) of these were pruned, leaving only 14 pages remaining for scanning in query evaluation.
+
+## Query Execution
+Finally, the Database scans non-pruned pages to collect matching rows and build the result set for each query:
+- **Column at a Time** As a Columnar Store, our database scans & evaluates query predicates on column chunks one at a time in predetermined order selected during query planning.
+* **Shared Scan** Instead of making multiple passes over the data to evaluate multiple queries, our store collects a batch of queries and evaluates all queries in the batch in 1 shared scan of the data.
+- **Buffer Manager**  Once materialised into memory, page column chunks are kept in memory for reuse, such as to reconstruct query results or to evaluate other predicates.
+* **Early Stopping.** Early stopping of the disk is performed when evaluating a time window predicate on the timestamp column. Since the data is sorted in ascending timestamp, scanning may stop once the read value exceeds the predicates’s upper time bound as no subsequent row may match in sorted order.
+
+Once matching positions have been identified the user selected column values are materialised to construct final query result set.
+
+## Optimisation: Achieving a 150x Speedup
+
+![Effect of Optimisations on Query Runtimes](public/images/projects/hdb_db/optimisations.png)
+
+**Figure 3: Effect on Optimisations on Store and Query Runtimes**
+
+Once a working prototype was created, we shifted our efforts to improving the performance of our column store. First, an end to end test suite was developed to ensure that the store continues to be functionally correct after optimisation. Bottlenecks were subsequently identified by analysing both CPU profile traces gathered by the `pprof` profiler [^5]. Finally an optimisation is devised to rectify the bottleneck.
+
+**Table 4: Effect on Optimisations on Store and Query Runtimes**
+
+| Optimisation                         | Store Time (s) | Query Time (s) | Baseline Speedup (Query) |
+| ------------------------------------ | -------------- | -------------- | ------------------------ |
+| Baseline                             | 8.286          | 20.508         | 1.00x                    |
+| No Page Size Estimation              | 5.445          | 15.429         | 1.33x                    |
+| RLE, Bitpacking, Dictionary Encoding | 3.014          | 6.661          | 3.08x                    |
+| Bloom Filter                         | 2.635          | 6.51           | 3.15x                    |
+| Shared Scan                          | 2.688          | 1.008          | 20.35x                   |
+| Column at a Time                     | 2.989          | 0.368          | 55.73x                   |
+| Page Row Count = 1024                | 3.837          | 0.136          | 150.79x                  |
+
+
+> Speedup reported is relative to baseline.
+
+### Removing Page Size Estimation
+Profile Trace showing Size Estimation Bottleneck
+
+We observe in the `pprof` profile trace that a disproportionate amount of time is spent estimating the the size of a written page. In the early design of the Column Database, the no. of rows stored per page is dynamically selected based on estimated page size to match the filesystem block size. Size estimation typically required the data actually be encoded to gauge its size footprint, leading to high compute cost.  To resolve this bottleneck, we switch from dynamic page row count estimation to a user specified static value, removing the need for page size estimation. This optimisation provides 1.52x speedup over baseline.
+
+**Table 5: Effect on Page Size Estimation on Store and Query Runtimes**
+
+| Optimisation              | Store Time (s) | Query Time (s) |
+| ------------------------- | -------------- | -------------- |
+| With Page Size Estimation | 8.286          | 20.508         |
+| No Page Size Estimation   | 5.445          | 15.429         |
+### Shared Scan
+Profile Trace showing IO bottleneck
+
+We also observe from the the profiler trace query runtimes was dominated by the disk IO syscall, indicating disk IO is bottleneck query runtimes. Closer inspection of the code reveals the same data is reread from disk to execute each query. Only 1 shared scan of the data is necessary to satisfy all queries. Repeated scans of the same data is redundant. By switching to a common shared scan to satisfy all queries, we achieve a 6.2x query time speedup.
+
+**Table 6: Effect on Shared Scan on and Query Runtimes**
+
+| Optimisation         | Store Time (s) | Query Time (s) |
+| --------------- | -------------- | -------------- |
+| Multiple Scans  | 2.635          | 6.51           |
+| Shared Scan | 2.669          | 1.05           |
+### Column at a Time
+Another cause of the IO bottleneck observed in the profiler trace is our original query algorithm. The original query algorithm only performed page-level data pruning, then proceeded to read full pages into memory with all columns. Despite storing data in a columnar fashion,, this query pattern made our column store a "row store" since the full row is materialised.  We rectified this by switching to a Column-At-A-Time query pattern. Columns are read into memory and predicates applied one by one in most selective first order to reduce redundant IO operations. Switching to a Column at a Time Query pattern resulting in a 2.74x speedup.
+
+**Table 7: Effect on Column a Time Query Pattern on and Query Runtimes**
+
+| Optimisation              | Store Time (s) | Query Time (s) |
+| -------------------- | -------------- | -------------- |
+| All Columns Per Page | 2.688          | 1.008          |
+| Column at a Time     | 2.989          | 0.368          |
+
+### Page Row Count Tuning
+
+![Big Data Writeup Storage Query Runtimes](public/images/projects/hdb_db/row_count_tuning.png)
+
+**Figure 4: Effect on Page Row Count on Store and Query Runtimes**
+
+The effectiveness of the PAX data storage layout is dependent on choosing the optimal number of rows $p$ stored per page. When $p=1$, PAX is effectively a row oriented store as each page read effectively fetches only values from 1 row. When $p= N$ when the $N$ is the total number of rows, PAX is effectively a column store as each page read fetches all values from a full column. We benchmarked performance over a range of $p$ values to empirically determine the optimal $p=1024$ value that minimises both store & query runtimes.
+
+**Table 8: Effect on Page Row Count on Store and Query Runtimes**
+
+| Row Count | Store Time (s) | Query Time (s) | Remarks                                             |
+|:--------- | -------------- | -------------- |:--------------------------------------------------- |
+| 1         | 73.298         | 12.957         | Effectively a row store                             |
+| 4         | 19.694         | 3.337          |                                                     |
+| 16        | 8.145          | 0.856          |                                                     |
+| 64        | 5.014          | 0.267          |                                                     |
+| 255       | 4.064          | 0.193          |                                                     |
+| 1018      | 3.635          | 0.182          |                                                     |
+| 1256      | 3.586          | 0.186          |                                                     |
+| 1500      | 3.517          | 0.183          |                                                     |
+| 2500      | 3.456          | 0.2            |                                                     |
+| 3500      | 3.375          | 0.22           |                                                     |
+| 4066      | 3.307          | 0.197          |                                                     |
+| 16243     | 2.989          | 0.368          |                                                     |
+| 64890     | 2.889          | 0.696          |                                                     |
+| 259237    | 2.813          | 2.35           | All rows in 1 page, No page level pruning possible. |
+| 1024      | 3.718          | 0.169          | Best page size                                      |
+
+## Conclusion
+In this project, we designed and implemented a columnar database from first principles, exploring how storage layout, compression, metadata, and query execution strategies influence analytical query performance. Systematic profiling and optimisation proved essential to achieving practical performance. By introducing techniques such as compression encodings, shared scans, column-at-a-time execution, metadata-driven pruning, and empirical page-size tuning, query runtime improved by over **150x** relative to baseline. Engineering performant software requires careful reasoning about memory access, I/O bottlenecks, and execution patterns.
+
+
+## References
+[1]: X. Zeng, Y. Hui, J. Shen, A. Pavlo, W. McKinney, and H. Zhang, ‘An Empirical Evaluation of Columnar Storage Formats’, Nov. 07, 2023, _arXiv_: arXiv:2304.05028. doi: [10.48550/arXiv.2304.05028](https://doi.org/10.48550/arXiv.2304.05028).
+[2]:  Bits-and-Blooms, ‘bloom/bloom.go at master · bits-and-blooms/bloom’, GitHub. Accessed: Apr. 22, 2026. [Online]. Available: [https://github.com/bits-and-blooms/bloom/blob/master/bloom.go](https://github.com/bits-and-blooms/bloom/blob/master/bloom.go)
+[3]: M. Stonebraker _et al._, ‘C-store: a column-oriented DBMS’, in _Making Databases Work: the Pragmatic Wisdom of Michael Stonebraker_, 1st edn, Massachusetts Institute of Technology and M. L. Brodie, Eds, Association for Computing Machinery, 2018, pp. 491–518. doi: [10.1145/3226595.3226638](https://doi.org/10.1145/3226595.3226638).
+[4]: A. Ailamaki, D. J. DeWitt, and M. D. Hill, ‘Data page layouts for relational databases on deep memory hierarchies’, _The VLDB Journal The International Journal on Very Large Data Bases_, vol. 11, no. 3, pp. 198–215, Nov. 2002, doi: [10.1007/s00778-002-0074-9](https://doi.org/10.1007/s00778-002-0074-9).
+[5]:  _google/pprof_. (May 23, 2026). Go. Google. Accessed: May 23, 2026. [Online]. Available: [https://github.com/google/pprof](https://github.com/google/pprof)
+[6]: 262588213843476, ‘Latency Numbers Every Programmer Should Know’, Gist. Accessed: Apr. 03, 2026. [Online]. Available: [https://gist.github.com/jboner/2841832](https://gist.github.com/jboner/2841832)
+[7]: ‘SC4023 Big Data Management Semester Group Project’. College of Computing and Data Science, Nanyang Technological University.
