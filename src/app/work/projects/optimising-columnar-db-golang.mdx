@@ -4,7 +4,7 @@ publishedAt: 2026-05-11
 summary: "Designing, Implementing and Optimising a Columnar Store in Golang, Achieving 150x Speedup over Baseline"
 image: "/images/projects/hdb_db/banner.png"
 images:
-  - "public/images/projects/hdb_db/banner.png"
+  - "images/projects/hdb_db/banner.png"
 team:
   - name: Gay Ming Kai
   - name: Lim Li Ping Joey
@@ -30,7 +30,7 @@ We loosely replicate the storage organisation in the popular Parquet file format
 -  **Sorted Order** We sort rows in order of advancing timestamp order. This allows us to perform data skipping later when evaluating the time window predicate at query time.
 
 
-![SC4023 File Format](public/images/projects/hdb_db/file_format.png)
+![SC4023 File Format](images/projects/hdb_db/file_format.png)
 
 
 **Figure 1: Column Store File Format**
@@ -69,7 +69,7 @@ String is written as a length character count followed by byte array of ascii ch
 | None       | String values are encoded by writing them sequentially, one after another.                                                                                                                           |
 | Dictionary | Each unique string is encode once in a dictionary and every occurrence is replaced with a 4 byte integer index. Dictionary encoding significantly reduces storage cost where strings are duplicated. |
 
-![Big Data Writeup Dataset No. of Rows vs Distinct Values by Column](public/images/projects/hdb_db/column_cardinality.png)
+![Big Data Writeup Dataset No. of Rows vs Distinct Values by Column](images/projects/hdb_db/column_cardinality.png)
 
 **Figure 2. Dataset No. of Rows vs Distinct Values by Column** 
 
@@ -115,7 +115,7 @@ Once matching positions have been identified the user selected column values are
 
 ## Optimisation: Achieving a 150x Speedup
 
-![Effect of Optimisations on Query Runtimes](public/images/projects/hdb_db/optimisations.png)
+![Effect of Optimisations on Query Runtimes](images/projects/hdb_db/optimisations.png)
 
 **Figure 3: Effect on Optimisations on Store and Query Runtimes**
 
@@ -170,7 +170,7 @@ Another cause of the IO bottleneck observed in the profiler trace is our origina
 
 ### Page Row Count Tuning
 
-![Big Data Writeup Storage Query Runtimes](public/images/projects/hdb_db/row_count_tuning.png)
+![Big Data Writeup Storage Query Runtimes](images/projects/hdb_db/row_count_tuning.png)
 
 **Figure 4: Effect on Page Row Count on Store and Query Runtimes**
 
