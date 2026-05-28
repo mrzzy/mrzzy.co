@@ -189,7 +189,7 @@ const schema: SchemaConfig = {
   logo: "",
   type: "Organization",
   name: "Once UI",
-  description: home.description,
+  description: "Once UI",
   email: "lorant@once-ui.com",
 };
 
