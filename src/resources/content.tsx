@@ -88,7 +88,7 @@ const home: Home = {
   subline: (
     <>
       👋 Hey, Zhanyan here.
-      <br /> I&apos;m a passionate Software Engineer with a Data Engineering focus.
+      <br /> I&apos;m a passionate Software Engineer with a AI &amp; Data Engineering focus.
     </>
   ),
 };
@@ -179,6 +179,16 @@ const about: About = await mergeResume({
       {
         name: "Build the Future",
         description: <>Studied online marketing and personal branding.</>,
+      },
+    ],
+  },
+  awards: {
+    display: true, // set to false to hide this section
+    title: "Awards",
+    awards: [
+      {
+        name: "A award",
+        description: <>I won this!</>,
       },
     ],
   },

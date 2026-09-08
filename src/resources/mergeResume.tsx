@@ -42,6 +42,17 @@ export const mergeResume = async (about: About): Promise<About> => {
     ),
   }));
 
+  // populate awards section
+  about.awards.title = resume.awards.title;
+  about.awards.awards = resume.awards.awards.map((awards: any) => ({
+    name: awards.name,
+    description: (
+      <>
+        awards.description
+      </>
+    ),
+  }));
+
   // populate technical skills
   about.technical.title = resume.skills.title;
   about.technical.skills = resume.skills.skillsets.map((skillset: any) => ({
@@ -56,4 +67,3 @@ export const mergeResume = async (about: About): Promise<About> => {
 
   return about;
 };
-

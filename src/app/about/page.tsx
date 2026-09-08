@@ -281,6 +281,26 @@ export default function About() {
             </>
           )}
 
+          {about.awards.display && (
+            <>
+              <Heading as="h2" id={about.awards.title} variant="display-strong-s" marginBottom="m">
+                {about.awards.title}
+              </Heading>
+              <Column fillWidth gap="l" marginBottom="40">
+                {about.awards.awards.map((award, index) => (
+                  <Column key={`${award.name}-${index}`} fillWidth gap="4">
+                    <Text id={award.name} variant="heading-strong-l">
+                      {award.name}
+                    </Text>
+                    <Text variant="heading-default-xs" onBackground="neutral-weak">
+                      {award.description}
+                    </Text>
+                  </Column>
+                ))}
+              </Column>
+            </>
+          )}
+
           {about.technical.display && (
             <>
               <Heading

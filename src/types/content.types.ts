@@ -179,6 +179,20 @@ export interface About extends BasePageConfig {
       description: React.ReactNode;
     }>;
   };
+  /** Awards section */
+  awards: {
+    /** Whether to display award section */
+    display: boolean;
+    /** Title for the Award section */
+    title: string;
+    /** List of awards attained */
+    awards: Array<{
+      /** Award name */
+      name: string;
+      /** Description of Awards */
+      description: React.ReactNode;
+    }>;
+  };
   /** Technical skills section */
   technical: {
     /** Whether to display technical skills section */
@@ -215,13 +229,13 @@ export interface About extends BasePageConfig {
  * Blog page configuration.
  * @description Configuration for the Blog page, including metadata and navigation label.
  */
-export interface Blog extends BasePageConfig {}
+export interface Blog extends BasePageConfig { }
 
 /**
  * Work/projects page configuration.
  * @description Configuration for the Work/Projects page, including metadata and navigation label.
  */
-export interface Work extends BasePageConfig {}
+export interface Work extends BasePageConfig { }
 
 /**
  * Gallery page configuration.
