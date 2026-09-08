@@ -1,0 +1,209 @@
+---
+title: "Augmenting Rather Than Replacing Artists with Generative AI"
+publishedAt: "2026-09-08"
+summary: "Designing and Developing an AI-assisted iPad drawing application"
+image: "/images/projects/broche/banner.png"
+images:
+  - "/images/projects/broche/banner.png"
+team:
+  - name: Zhu Zhanyan
+    avatar: /images/avatar.jpg
+---
+
+# Introduction
+
+<video controls src="/videos/projects/borche/demo.mp4"></video>
+
+As part of my Final Year Project, I developed **Broche**, an iPad AI-Assisted Drawing App designed to explore how generative AI can augment rather than replace artists.
+
+Several engineering challenges encountered during the development process is discussed here:
+- AI Model Deployment
+- Performance Optimisation
+- AI Agent Design
+
+Source code for the project is available on [GitHub](https://github.com/mrzzy/ntu-fyp).
+
+## AI Model Deployment
+
+One of the earliest architectural decisions was whether AI inference should be performed **offline on the iPad** or **online through external inference providers**.
+
+### Offline Deployment
+
+Running models locally offers several attractive properties:
+
+- No network connection is required for inference.
+- User data remains on-device.
+- There are no per-request inference costs.
+- The application does not depend on external inference providers.
+
+I initially explored on-device inference runtimes including MLX, UZU and LiteRT-LM for language models, as well as Core ML Stable Diffusion and Media Generation Kit for image generation.
+
+However, the iPad's resource constraints made a fully offline architecture impractical for the target application.
+
+The primary limitations were:
+
+- **Model support**: UZU performed well in our benchmark but lacked the VLM support required for sketch understanding.
+- **Image quality**: the available quantised Stable Diffusion deployment produced insufficient image quality.
+- **Feature support**: Media Generation Kit supported Flux.2 text-to-image generation but failed when supplied with an image prompt, which was essential to the application's workflow.
+- **Model loading**: model weights had to be distributed separately due to the iOS application bundle size restriction, introducing significant download and model-loading delays.
+- **Memory utilisation**: large models consumed a substantial portion of the iPad's unified memory. Loading the 4B-parameter Qwen 3.5 VLM consumed approximately 5.2 GB of an 8 GB memory budget.
+- **Model capability**: resource constraints limited the application to smaller and weaker models and restricted the ability to load multiple models simultaneously.
+- **Dependency complexity**: integrating multiple on-device inference frameworks introduced build-time dependency conflicts.
+
+Offline deployment therefore offered better privacy and independence, but at the cost of model capability, memory, loading time and implementation complexity.
+
+### Online Deployment
+
+Online inference moves model inference to external servers. This substantially relaxes the application's compute and memory constraints and provides access to larger, more capable models.
+
+The main advantages were:
+
+- Access to state-of-the-art models.
+- No model download or model loading delay on the device.
+- Minimal local resource utilisation.
+- No need to bundle large model weights and inference dependencies.
+
+The trade-offs were **inference cost** and **API key security**.
+
+Online deployment was ultimately selected because its higher resource limits made the application's multi-model architecture practical, while warm inference avoided the long model download and loading process associated with offline deployment.
+
+2 Online inference providers where use to perform model inference for the app:
+
+- **OpenRouter** for LLM and VLM inference.
+- **Replicate** for diffusion model inference.
+
+#### Securing API Key Credentials
+
+I evaluated several approaches for securing inference credentials:
+
+![CloudKit Database](/images/projects/broche/apikey_cloudkit.png)
+
+- **CloudKit Database** This architecture offloads the API Key to the public CloudKit Database. Before making an Inference Request to an AI Inference API, it first fetches the long-lived API Key from the Database, then contacts the Inference Provider’s API directly to make the AI Inference Request.
+
+![Authenticated User with Proxy](/images/projects/broche/apikey_cloudkit.png)
+
+- **Authenticated User with Proxy** This design restricts access to authenticated users only. Using Firebase Authentication, users must authenticate before using the Broche App. The API Key is never disclosed to the client App. Instead, the App may only make requests indirectly via a backend proxy server, which is responsible for relaying the Inference request to the actual Inference Provider.
+
+![Authenticated User with Database](/images/projects/broche/apikey_db.png)
+
+- **Authenticated User with Database** Again, users are forced to authenticate before using AI features. Authenticated users are given direct access to the Inference API by fetching a record containing the long-lived API Key in the Firestore Database.
+
+![Authenticated User with Database and Key Rotation](/images/projects/broche/apikey_db_rotate.png)
+
+- **Authenticated User with Database and Key Rotation** Extends the design by the addition of Firebase Function that periodically rotates API keys stored in the Firestore Database. The job contacts the AI Inference providers to issue fresh API keys and subsequently writes to the Firestore Database. The App obtains the rotated API Keys from the database prior to making a request to an inference provider, ensuring that it always uses the latest API key for authentication.
+
+<table><thead><tr><th>Architecture</th><th>Security</th><th>Complexity</th><th>Cost</th><th>Latency</th></tr></thead><tbody><tr><td><strong>Cloud Kit Database</strong></td><td><strong>Weak.</strong> Any user with access to the App and the iCloud account can access the API Key in the CloudKit public database and utilise its AI features.</td><td><strong>Low.</strong> Simple to implement with CloudKit API available in the iOS SDKs.</td><td><strong>Low.</strong> CloudKit costs are bundled together with the Apple Developer Membership.</td><td><strong>Fast.</strong> Database lookup for API key.</td></tr><tr><td><strong>Authenticated User with Proxy</strong></td><td><strong>Strong.</strong> Inference Provider API Keys are never disclosed to the App. Only Authenticated Users are able to utilise its AI features.</td><td><strong>High.</strong> Requires the implementation of a custom Backend Service to proxy requests to AI Inference providers.</td><td><strong>High.</strong> Network Egress charge is incurred for all proxied data between the App and Inference Provider.</td><td><strong>Slow.</strong> Proxied requests have to traverse multiple network hops.</td></tr><tr><td><strong>Authenticated User with Database</strong></td><td><strong>Moderate.</strong> Only Authenticated users can fetch API Key from the Database and access AI Features. However a long-lived API key may still be disclosed if the App is compromised.</td><td><strong>Low.</strong> Simple to implement with Firebase SDK.</td><td><strong>Low.</strong> Since the API key is long-lived, App clients can cache the fetched API key after first reading it from the API server.</td><td><strong>Fast.</strong> Database lookup for API key.</td></tr><tr><td><strong>Authenticated User with Database and Key Rotation</strong></td><td><strong>Moderately Strong.</strong> Restricts access to API Key and AI features to authenticated users. Short-lived, frequently rotated API keys reduce the potential damage should the API key be disclosed by a compromised App.</td><td><strong>Medium.</strong> A scheduled Firebase Function has been implemented to automatically rotate API keys and write the result to Firestore.</td><td><strong>Medium.</strong> Database reads to fetch API Keys are relatively cheap.</td><td><strong>Fast.</strong> Database lookup for API key.</td></tr></tbody></table>
+
+The selected architecture used **authenticated users with database-backed key rotation**.
+
+## Performance Benchmarking
+
+![Lag Panning and Zooming](/images/projects/broche/lag.gif)
+
+Acceptance testing identified two major performance problems in the Sketch View:
+
+1. **Drawing Stroke**: individual drawing strokes could take several seconds to register and render.
+2. **Panning and Zooming**: manipulating drawings containing AI-generated image layers introduced noticeable rendering latency.
+
+Xcode's Instruments Time Profiler was used to identify the dominant execution paths.
+
+### Drawing Stroke
+
+![Profiler Image Getter](/images/projects/broche/profiler_image.png)
+
+Profiling showed that a significant amount of execution time was spent in `Sketch.image.getter`.
+
+The problem was caused by the Sketch selection sidebar. SwiftUI refreshed the sidebar when the drawing changed, causing the drawing image to be rendered again even though the rendered image itself had not meaningfully changed.
+
+The optimisation was therefore straightforward: **cache the rendered drawing image** rather than reconstructing it on every view refresh.
+
+The cache expires after five seconds to ensure that the displayed preview is eventually refreshed.
+
+### Panning and Zooming
+
+![Profiler Render Layers](/images/projects/broche/profiler_layer.png)
+
+Profiling also showed that `SketchRender.renderLayers` dominated execution time during panning and zooming.
+
+The original implementation recombined every drawing layer whenever the viewport changed. However, during normal drawing interactions, only the top layer is actively modified.
+
+An optimised rendering strategy was introduced:
+
+- Render the lower, relatively static layers once.
+- Cache the resulting image.
+- Re-render only the top layer during interactive manipulation.
+- Composite the cached lower layers with the dynamic top layer.
+
+This avoids repeatedly performing expensive rendering work that cannot affect the current interaction.
+
+### Benchmark Results
+
+The performance improvements were measured using a small controlled benchmark.
+
+<table><caption><strong>Performance Optimisation Results</strong></caption><thead><tr><th>Optimisation</th><th>Benchmark</th><th>Baseline</th><th>Optimised</th><th>Speedup</th></tr></thead><tbody><tr><td><strong>Drawing Stroke</strong></td><td>1,000 <code>Sketch.image.getter</code> calls</td><td>21.21 s</td><td>41.74 ms</td><td><strong>508.18×</strong></td></tr><tr><td><strong>Panning &amp; Zooming</strong></td><td>1,000 3-layer renders</td><td>26.88 s</td><td>5.86 s</td><td><strong>4.58×</strong></td></tr></tbody></table>
+
+## Agent Design
+
+![Profiler Render Layers](/images/projects/broche/sketch_agent.png)
+
+The Sketch Agent provides the conversational interface between the artist and the application's AI features.
+Users text naturally with the Sketch Agent, which invoke tools that act on the user's Sketch. This provides a friendlier entrypoint to AI feature for users unfamiliar with the intricacies of Diffusion Models.
+
+The agent has access to several tools:
+
+- `caption_sketch` - understands the current drawing using a VLM.
+- `explain_edit` - interprets the user's intended edit.
+- `edit_sketch` - performs an incremental image edit.
+- `render_sketch` - transforms a sketch into a polished image.
+- `list_mood` - discovers user-created moods.
+- `inject_mood` - retrieves the description associated with a selected mood.
+
+Underneath the hood, the agent itself powered by **Qwen3-30B-A3B-Instruct-2507** LLM.
+It has access to tools powered by **GPT 5 Nano** VLM and **FLUX.2 Klein 9B** Image Generation models.
+
+### Static Workflow Guidance
+
+A key implementation finding was that simply providing the LLM with a collection of tools was insufficient.
+
+Without additional guidance, the agent's tool selection was unreliable.
+
+The system prompt provides static procedural guidance describing which tools should be invoked for each type of user request:
+```
+You are a sketch assistant. Help users render or edit their sketches and
+provide visual guidance.
+...
+You may use tools to complete tasks.
+
+If the user specifies a mood or style, use (ListMoodTool.NAME) to list
+available moods, then (InjectMoodTool.NAME) with the mood's id to retrieve
+its full description.
+
+1. Rendering Pipeline:
+   [(CaptionTool.NAME), (ListMoodTool.NAME), (InjectMoodTool.NAME),
+   (RenderTool.NAME)].
+   Use when the user wants to render a final image.
+
+2. Editing Pipeline:
+   [(ExplainEditTool.NAME), (ListMoodTool.NAME), (InjectMoodTool.NAME),
+   (EditTool.NAME)].
+   Use when the user wants to modify or refine the sketch.
+
+Do not use both (EditTool.NAME) and (RenderTool.NAME) for the same user
+message. Choose one pipeline based on the user's request.
+```
+
+## Results
+
+The completed Broche App was tested across three representative creative workloads:
+
+![Illustration Workload](/images/projects/broche/workload_illustration.png)
+
+- **Illustration** - creating an illustration of a picnic in nature.
+
+![Graphic Design Workload](/images/projects/broche/workload_graphic.png)
+
+- **Graphic Design** - creating a graphic poster containing the words "Never Give Up" in the style of Soviet propaganda.
+
+![UI Design Workload](/images/projects/broche/workload_ui.png)
+
+- **UI Design** - transforming a rough UI wireframe into a realistic visual design.
