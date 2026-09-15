@@ -35,6 +35,12 @@ const social: Social = [
   // Import new icons in /once-ui/icons.ts
   // Set essentials: true for links you want to show on the about page
   {
+    name: "Resume",
+    icon: "document",
+    link: "https://mrzzy.github.io/resume/assets/pdfs/main-1.pdf",
+    essential: true,
+  },
+  {
     name: "GitHub",
     icon: "github",
     link: "https://github.com/mrzzy",
@@ -44,12 +50,6 @@ const social: Social = [
     name: "LinkedIn",
     icon: "linkedin",
     link: "https://www.linkedin.com/in/zhu-zhanyan",
-    essential: true,
-  },
-  {
-    name: "Threads",
-    icon: "threads",
-    link: "https://www.threads.com/@once_ui",
     essential: true,
   },
   {
@@ -93,7 +93,7 @@ const home: Home = {
   ),
 };
 
-// overidde about page with resume content
+// override about page with resume content
 const about: About = await mergeResume({
   path: "/about",
   label: "About",
