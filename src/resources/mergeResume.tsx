@@ -48,7 +48,7 @@ export const mergeResume = async (about: About): Promise<About> => {
     name: awards.name,
     description: (
       <>
-        awards.description
+        {awards.description}
       </>
     ),
   }));
