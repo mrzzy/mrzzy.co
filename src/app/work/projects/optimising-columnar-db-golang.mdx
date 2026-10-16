@@ -37,7 +37,7 @@ We loosely replicate the storage organisation in the popular Parquet file format
 
 ### File Footer
 We embed various metadata (eg. write statistics) into the file footer on write to enable query time optimisations on the read path.
-- **File Offset** We save page and column chunk offsets when writing them to disk in the file footer. This allows efficient reads of specific pages & column chunks at query time by allowing the storage engine to seek directly to the queried data without having to rest of the file.
+- **File Offset** We save page and column chunk offsets when writing them to disk in the file footer. This allows efficient reads of specific pages & column chunks at query time by allowing the storage engine to seek directly to the queried data without having to scan the full file.
 - **Zone Map** We track zone map statistics (min value, max value) in file footer to perform data skipping at query time by avoiding pages with values range outside the queried range.
 - **Column Statistics** such as row counts and cardinality are tracked in the file footer for used in query predicate cardinality / selectivity estimation to determine column query order.
 - **Bloom Filters** Bloom filters created for categorical columns and stored in the file footer. They provide probabilistic data skipping by excluding from scanning when definitively exclude the queried value(s). We used an external library to provide the Bloom Filter implementation [^2].
