@@ -6,7 +6,7 @@
 name: "CI Pipeline"
 on: push
 env:
-  NODE_VERSION: "~20.15"
+  NODE_VERSION: "~24.11"
 jobs:
   lint:
     name: "Lint Code"
